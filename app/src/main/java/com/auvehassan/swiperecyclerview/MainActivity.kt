@@ -17,8 +17,7 @@ import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var dragHelper: ItemTouchHelper
-    private lateinit var swipeHelper: ItemTouchHelper
+    private lateinit var gestureHelper: ItemTouchHelper
 
     @SuppressLint("UseCompatLoadingForDrawables")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,18 +46,41 @@ class MainActivity : AppCompatActivity() {
                 recyclerView.adapter = it
             }
 
-        // swipe detection left/right
-        swipeHelper = ItemTouchHelper(
+        // swipe/drag detection left/right
+        gestureHelper = ItemTouchHelper(
             object :
-                ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+                ItemTouchHelper.SimpleCallback(
+                    ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+                    ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+                ) {
 
                 override fun onMove(
                     recyclerView: RecyclerView,
                     viewHolder: RecyclerView.ViewHolder,
                     target: RecyclerView.ViewHolder
-                ) = true
+                ): Boolean {
+                    //for dragging
+                    viewHolder.itemView.elevation = 16F
+
+                    val from = viewHolder.adapterPosition
+                    val to = target.adapterPosition
+
+                    Collections.swap(items, from, to)
+                    adapter.notifyItemMoved(from, to)
+                    return true
+                }
+
+                override fun onSelectedChanged(
+                    viewHolder: RecyclerView.ViewHolder?,
+                    actionState: Int
+                ) {
+                    super.onSelectedChanged(viewHolder, actionState)
+                    //for dragging
+                    viewHolder?.itemView?.elevation = 0F
+                }
 
                 override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    // for swapping
                     val pos = viewHolder.adapterPosition
                     items.removeAt(pos)
                     adapter.notifyItemRemoved(pos)
@@ -79,6 +101,7 @@ class MainActivity : AppCompatActivity() {
                     actionState: Int,
                     isCurrentlyActive: Boolean
                 ) {
+                    //for swapping
                     //Background color changed according to swipe direction
                     when {
                         abs(dX) < width / 3 -> canvas.drawColor(Color.GRAY)
@@ -118,43 +141,14 @@ class MainActivity : AppCompatActivity() {
                         isCurrentlyActive
                     )
                 }
+
+
             })
 
-        // drag detection top/down
-        dragHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
-        ) {
-
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean {
-
-                viewHolder.itemView.elevation = 16F
-
-                val from = viewHolder.adapterPosition
-                val to = target.adapterPosition
-
-                Collections.swap(items, from, to)
-                adapter.notifyItemMoved(from, to)
-                return true
-            }
-
-            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
-                super.onSelectedChanged(viewHolder, actionState)
-                viewHolder?.itemView?.elevation = 0F
-            }
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
-
-        })
-
-        swipeHelper.attachToRecyclerView(recyclerView)
-        dragHelper.attachToRecyclerView(recyclerView)
+        gestureHelper.attachToRecyclerView(recyclerView)
     }
 
-    fun startDragging(holder: RecyclerView.ViewHolder) = dragHelper.startDrag(holder)
+    fun startDragging(holder: RecyclerView.ViewHolder) = gestureHelper.startDrag(holder)
 
     private val Int.dp
         get() = TypedValue.applyDimension(
